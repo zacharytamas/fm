@@ -1,10 +1,10 @@
-import type { Email } from "./shared.ts"
+import type { EmailMessage } from "./shared.ts"
 import { getClient } from "./shared.ts"
 
 interface EmailGetResponse {
   accountId: string
   state: string
-  list: Email[]
+  list: EmailMessage[]
   notFound: string[]
 }
 
@@ -41,7 +41,7 @@ const BODY_PROPERTIES = ["bodyStructure", "bodyValues", "textBody", "htmlBody", 
 export async function getMessage(
   emailId: string,
   options: GetMessageOptions = {},
-): Promise<Email | null> {
+): Promise<EmailMessage | null> {
   const { includeBody = false, bodyType = "both" } = options
 
   const client = getClient()
@@ -89,7 +89,7 @@ export async function getMessage(
 export async function getMessages(
   emailIds: string[],
   options: GetMessageOptions = {},
-): Promise<Email[]> {
+): Promise<EmailMessage[]> {
   const { includeBody = false, bodyType = "both" } = options
 
   if (emailIds.length === 0) {

@@ -1,10 +1,10 @@
-import type { Email } from "./shared.ts"
+import type { EmailMessage } from "./shared.ts"
 import { getClient } from "./shared.ts"
 
 interface EmailGetResponse {
   accountId: string
   state: string
-  list: Email[]
+  list: EmailMessage[]
   notFound: string[]
 }
 
@@ -28,7 +28,7 @@ const DEFAULT_EMAIL_PROPERTIES = [
   "hasAttachment",
 ]
 
-export async function getMessages(options: GetMessagesOptions): Promise<Email[]> {
+export async function getMessages(options: GetMessagesOptions): Promise<EmailMessage[]> {
   const { mailboxId, limit = 50, position = 0, sort } = options
 
   const client = getClient()
@@ -71,7 +71,7 @@ export async function getMessages(options: GetMessagesOptions): Promise<Email[]>
   return result?.list ?? []
 }
 
-export async function getUnreadMessages(mailboxId: string, limit = 50): Promise<Email[]> {
+export async function getUnreadMessages(mailboxId: string, limit = 50): Promise<EmailMessage[]> {
   const client = getClient()
   const accountId = await client.getAccountId()
 

@@ -11,10 +11,10 @@ export type { GetMessagesOptions } from "./get-messages.ts"
 export { getMessages, getUnreadMessages } from "./get-messages.ts"
 export { addToMailbox, moveMessage, removeFromMailbox } from "./move-message.ts"
 export type {
-  Email,
   EmailAddress,
   EmailBodyPart,
   EmailBodyValue,
+  EmailMessage,
   JMAPSession,
   Mailbox,
 } from "./shared.ts"

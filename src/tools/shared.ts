@@ -80,7 +80,7 @@ export interface EmailBodyValue {
   isTruncated: boolean
 }
 
-export interface Email {
+export interface EmailMessage {
   id: string
   blobId: string
   threadId: string
