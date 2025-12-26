@@ -11,7 +11,9 @@ interface EmailSetResponse {
   notDestroyed?: Record<string, { type: string; description?: string }> | null
 }
 
-export async function archiveMessage(emailId: string): Promise<void> {
+export async function archiveMessages(emailIds: string[]): Promise<void> {
+  if (emailIds.length === 0) return
+
   const archiveMailbox = await getMailboxByRole("archive")
   if (!archiveMailbox) {
     throw new Error("Archive mailbox not found")
@@ -20,30 +22,23 @@ export async function archiveMessage(emailId: string): Promise<void> {
   const client = getClient()
   const accountId = await client.getAccountId()
 
+  const update = Object.fromEntries(
+    emailIds.map((emailId) => [emailId, { mailboxIds: { [archiveMailbox.id]: true } }]),
+  )
+
   const response = await client.execute([
-    {
-      name: "Email/set",
-      args: {
-        accountId,
-        update: {
-          [emailId]: {
-            mailboxIds: { [archiveMailbox.id]: true },
-          },
-        },
-      },
-      clientId: "archive",
-    },
+    { name: "Email/set", args: { accountId, update }, clientId: "archive" },
   ])
 
   if (client.isError(response, "archive")) {
     const error = client.getError(response, "archive")
-    throw new Error(`Failed to archive email: ${error?.type} - ${error?.description}`)
+    throw new Error(`Failed to archive emails: ${error?.type} - ${error?.description}`)
   }
 
   const result = client.getResult<EmailSetResponse>(response, "archive")
-  if (result?.notUpdated?.[emailId]) {
-    const updateError = result.notUpdated[emailId]
-    throw new Error(`Failed to archive email: ${updateError.type} - ${updateError.description}`)
+  if (result?.notUpdated && Object.keys(result.notUpdated).length > 0) {
+    const failedIds = Object.keys(result.notUpdated)
+    throw new Error(`Failed to archive ${failedIds.length} emails`)
   }
 }
 

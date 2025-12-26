@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { archiveMessage, deleteMessage, deleteMessages, trashMessage } from "./archive-delete.ts"
+import { archiveMessages, deleteMessage, deleteMessages, trashMessage } from "./archive-delete.ts"
 import { createMockFetch, createSuccessResponse, getMethodCall } from "./test-utils.ts"
 
 describe("archive-delete", () => {
@@ -21,29 +21,42 @@ describe("archive-delete", () => {
     }
   })
 
-  describe("archiveMessage", () => {
-    test("moves email to archive mailbox", async () => {
+  describe("archiveMessages", () => {
+    test("moves multiple emails to archive mailbox in single request", async () => {
       const archiveMailbox = { id: "archive-id", name: "Archive", role: "archive" }
+      const inboxMailbox = { id: "inbox-id", name: "Inbox", role: "inbox" }
 
       const { mockFetch, capturedRequests } = createMockFetch({
         apiResponses: [
           createSuccessResponse([
-            ["Mailbox/get", { list: [archiveMailbox], notFound: [] }, "getMailboxes"],
+            ["Mailbox/get", { list: [archiveMailbox, inboxMailbox], notFound: [] }, "getMailboxes"],
           ]),
-          createSuccessResponse([["Email/set", { updated: { "email-123": null } }, "archive"]]),
+          createSuccessResponse([
+            ["Email/set", { updated: { "email-1": null, "email-2": null } }, "archive"],
+          ]),
         ],
       })
       globalThis.fetch = mockFetch
 
-      await archiveMessage("email-123")
+      await archiveMessages(["email-1", "email-2"])
 
       const setCall = getMethodCall(capturedRequests, -1, 0)
       expect(setCall?.[0]).toBe("Email/set")
       expect(setCall?.[1].update).toEqual({
-        "email-123": {
-          mailboxIds: { "archive-id": true },
-        },
+        "email-1": { mailboxIds: { "archive-id": true } },
+        "email-2": { mailboxIds: { "archive-id": true } },
       })
+    })
+
+    test("does nothing for empty array", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [],
+      })
+      globalThis.fetch = mockFetch
+
+      await archiveMessages([])
+
+      expect(capturedRequests).toHaveLength(0)
     })
 
     test("throws if archive mailbox not found", async () => {
@@ -54,7 +67,45 @@ describe("archive-delete", () => {
       })
       globalThis.fetch = mockFetch
 
-      await expect(archiveMessage("email-123")).rejects.toThrow("Archive mailbox not found")
+      await expect(archiveMessages(["email-123"])).rejects.toThrow("Archive mailbox not found")
+    })
+
+    test("throws if inbox mailbox not found", async () => {
+      const { mockFetch } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([["Mailbox/get", { list: [], notFound: [] }, "getMailboxes"]]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await expect(archiveMessages(["email-123"])).rejects.toThrow("Archive mailbox not found")
+    })
+
+    test("throws when some emails not updated", async () => {
+      const archiveMailbox = { id: "archive-id", name: "Archive", role: "archive" }
+      const inboxMailbox = { id: "inbox-id", name: "Inbox", role: "inbox" }
+      const { mockFetch } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            ["Mailbox/get", { list: [archiveMailbox, inboxMailbox], notFound: [] }, "getMailboxes"],
+          ]),
+          createSuccessResponse([
+            [
+              "Email/set",
+              {
+                updated: { "email-1": null },
+                notUpdated: { "email-2": { type: "notFound" } },
+              },
+              "archive",
+            ],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await expect(archiveMessages(["email-1", "email-2"])).rejects.toThrow(
+        "Failed to archive 1 emails",
+      )
     })
   })
 
