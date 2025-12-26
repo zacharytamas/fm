@@ -1,4 +1,4 @@
-export { archiveMessages, deleteMessage, deleteMessages, trashMessage } from "./archive-delete.ts"
+export { archiveMessages, deleteMessage, deleteMessages, trashMessages } from "./archive-delete.ts"
 export {
   getMailboxById,
   getMailboxByName,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { archiveMessages, deleteMessage, deleteMessages, trashMessage } from "./archive-delete.ts"
+import { archiveMessages, deleteMessage, deleteMessages, trashMessages } from "./archive-delete.ts"
 import { createMockFetch, createSuccessResponse, getMethodCall } from "./test-utils.ts"
 
 describe("archive-delete", () => {
@@ -109,8 +109,8 @@ describe("archive-delete", () => {
     })
   })
 
-  describe("trashMessage", () => {
-    test("moves email to trash mailbox", async () => {
+  describe("trashMessages", () => {
+    test("moves multiple emails to trash mailbox in single request", async () => {
       const trashMailbox = { id: "trash-id", name: "Trash", role: "trash" }
 
       const { mockFetch, capturedRequests } = createMockFetch({
@@ -118,19 +118,70 @@ describe("archive-delete", () => {
           createSuccessResponse([
             ["Mailbox/get", { list: [trashMailbox], notFound: [] }, "getMailboxes"],
           ]),
-          createSuccessResponse([["Email/set", { updated: { "email-123": null } }, "trash"]]),
+          createSuccessResponse([
+            ["Email/set", { updated: { "email-1": null, "email-2": null } }, "trash"],
+          ]),
         ],
       })
       globalThis.fetch = mockFetch
 
-      await trashMessage("email-123")
+      await trashMessages(["email-1", "email-2"])
 
       const setCall = getMethodCall(capturedRequests, -1, 0)
+      expect(setCall?.[0]).toBe("Email/set")
       expect(setCall?.[1].update).toEqual({
-        "email-123": {
-          mailboxIds: { "trash-id": true },
-        },
+        "email-1": { mailboxIds: { "trash-id": true } },
+        "email-2": { mailboxIds: { "trash-id": true } },
       })
+    })
+
+    test("does nothing for empty array", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [],
+      })
+      globalThis.fetch = mockFetch
+
+      await trashMessages([])
+
+      expect(capturedRequests).toHaveLength(0)
+    })
+
+    test("throws if trash mailbox not found", async () => {
+      const { mockFetch } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([["Mailbox/get", { list: [], notFound: [] }, "getMailboxes"]]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await expect(trashMessages(["email-123"])).rejects.toThrow("Trash mailbox not found")
+    })
+
+    test("throws when some emails not updated", async () => {
+      const trashMailbox = { id: "trash-id", name: "Trash", role: "trash" }
+
+      const { mockFetch } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            ["Mailbox/get", { list: [trashMailbox], notFound: [] }, "getMailboxes"],
+          ]),
+          createSuccessResponse([
+            [
+              "Email/set",
+              {
+                updated: { "email-1": null },
+                notUpdated: { "email-2": { type: "notFound" } },
+              },
+              "trash",
+            ],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await expect(trashMessages(["email-1", "email-2"])).rejects.toThrow(
+        "Failed to trash 1 emails",
+      )
     })
   })
 
