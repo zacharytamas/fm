@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { addToMailbox, moveMessage, removeFromMailbox } from "./move-message.ts"
+import { addToMailbox, moveMessage, moveMessages, removeFromMailbox } from "./move-message.ts"
 import { createMockFetch, createSuccessResponse, getMethodCall } from "./test-utils.ts"
 
 describe("move-message", () => {
@@ -75,6 +75,67 @@ describe("move-message", () => {
       globalThis.fetch = mockFetch
 
       await expect(moveMessage("email-123", "from", "to")).rejects.toThrow("Failed to move email")
+    })
+  })
+
+  describe("moveMessages", () => {
+    test("moves multiple emails in single request", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            ["Email/set", { updated: { "email-1": null, "email-2": null } }, "move"],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await moveMessages(["email-1", "email-2"], "inbox-id", "archive-id")
+
+      const methodCall = getMethodCall(capturedRequests)
+      expect(methodCall?.[0]).toBe("Email/set")
+      expect(methodCall?.[1].update).toEqual({
+        "email-1": {
+          "mailboxIds/inbox-id": null,
+          "mailboxIds/archive-id": true,
+        },
+        "email-2": {
+          "mailboxIds/inbox-id": null,
+          "mailboxIds/archive-id": true,
+        },
+      })
+    })
+
+    test("does nothing for empty array", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [],
+      })
+      globalThis.fetch = mockFetch
+
+      await moveMessages([], "from", "to")
+
+      expect(capturedRequests).toHaveLength(0)
+    })
+
+    test("throws when some emails not updated", async () => {
+      const { mockFetch } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            [
+              "Email/set",
+              {
+                updated: { "email-1": null },
+                notUpdated: { "email-2": { type: "notFound" } },
+              },
+              "move",
+            ],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await expect(moveMessages(["email-1", "email-2"], "from", "to")).rejects.toThrow(
+        "Failed to move 1 emails",
+      )
     })
   })
 

@@ -43,8 +43,16 @@ describe("archive-delete", () => {
       const setCall = getMethodCall(capturedRequests, -1, 0)
       expect(setCall?.[0]).toBe("Email/set")
       expect(setCall?.[1].update).toEqual({
-        "email-1": { mailboxIds: { "archive-id": true } },
-        "email-2": { mailboxIds: { "archive-id": true } },
+        "email-1": {
+          "keywords/$seen": true,
+          "mailboxIds/inbox-id": null,
+          "mailboxIds/archive-id": true,
+        },
+        "email-2": {
+          "keywords/$seen": true,
+          "mailboxIds/inbox-id": null,
+          "mailboxIds/archive-id": true,
+        },
       })
     })
 
@@ -130,8 +138,8 @@ describe("archive-delete", () => {
       const setCall = getMethodCall(capturedRequests, -1, 0)
       expect(setCall?.[0]).toBe("Email/set")
       expect(setCall?.[1].update).toEqual({
-        "email-1": { mailboxIds: { "trash-id": true } },
-        "email-2": { mailboxIds: { "trash-id": true } },
+        "email-1": { "keywords/$seen": true, mailboxIds: { "trash-id": true } },
+        "email-2": { "keywords/$seen": true, mailboxIds: { "trash-id": true } },
       })
     })
 

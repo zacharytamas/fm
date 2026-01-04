@@ -2,6 +2,9 @@
   "name": "fm",
   "module": "src/index.ts",
   "type": "module",
+  "bin": {
+    "fm": "bin/fm.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -10,6 +13,7 @@
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.0.200",
-    "@opencode-ai/sdk": "^1.0.200"
+    "@opencode-ai/sdk": "^1.0.200",
+    "cac": "^6.7.14"
   }
 }

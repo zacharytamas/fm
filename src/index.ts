@@ -1,1 +1,4 @@
-console.log("Hello via Bun!")
+import { runCli } from "./cli.ts"
+
+const exitCode = await runCli(Bun.argv.slice(2))
+process.exit(exitCode)

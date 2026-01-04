@@ -4,23 +4,26 @@ import { executeEmailDestroy, executeEmailUpdate } from "./shared.ts"
 export async function archiveMessages(emailIds: string[], markRead = true): Promise<void> {
   if (emailIds.length === 0) return
 
-  const archiveMailbox = await getMailboxByRole("archive")
+  const mailboxes = await getMailboxes()
+  const archiveMailbox = mailboxes.find((mailbox) => mailbox.role === "archive") ?? null
   if (!archiveMailbox) {
     throw new Error("Archive mailbox not found")
   }
 
-  const inboxes = (await getMailboxes()).filter((m) => m.name.toLowerCase().includes("inbox"))
+  const inboxes = mailboxes.filter((mailbox) => mailbox.name.toLowerCase().includes("inbox"))
+  const inboxUpdates =
+    inboxes.length > 0
+      ? Object.fromEntries(inboxes.map((mailbox) => [`mailboxIds/${mailbox.id}`, null]))
+      : {}
+  const archiveUpdate = { [`mailboxIds/${archiveMailbox.id}`]: true }
 
   const update = Object.fromEntries(
     emailIds.map((emailId) => [
       emailId,
       {
         ...(markRead && { "keywords/$seen": true }),
-        mailboxIds: {
-          // Remove from all inboxes
-          ...(inboxes.length > 0 ? Object.fromEntries(inboxes.map((m) => [m.id, null])) : {}),
-          [archiveMailbox.id]: true,
-        },
+        ...inboxUpdates,
+        ...archiveUpdate,
       },
     ]),
   )

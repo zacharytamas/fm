@@ -71,7 +71,11 @@ export async function getMessages(options: GetMessagesOptions): Promise<EmailMes
   return result?.list ?? []
 }
 
-export async function getUnreadMessages(mailboxId: string, limit = 50): Promise<EmailMessage[]> {
+export async function getUnreadMessages(
+  mailboxId: string,
+  limit = 50,
+  position = 0,
+): Promise<EmailMessage[]> {
   const client = getClient()
   const accountId = await client.getAccountId()
 
@@ -86,6 +90,7 @@ export async function getUnreadMessages(mailboxId: string, limit = 50): Promise<
         },
         sort: [{ property: "receivedAt", isAscending: false }],
         limit,
+        position,
       },
       clientId: "query",
     },
