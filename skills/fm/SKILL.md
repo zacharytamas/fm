@@ -28,6 +28,7 @@ Translate user intent into `fm` operations and return results without exposing C
 
 - Use exactly one mailbox selector when required (`--id`, `--name`, `--role`, or the command-specific variants).
 - `message list --unread` cannot be combined with `--position` or `--sort`.
+- `message list --from` filters by sender; `--subject-contains` filters by subject substring.
 - `message list --limit` max is 100; use `--position` to paginate or `--all` to fetch every page.
 - For bulk actions (`move`, `archive`, `trash`, `delete`, `mark`), `--stdin` accepts newline-delimited IDs. Use `--force --no-input` for non-interactive trash/delete.
 - `--body-type` implies body output (`text`, `html`, or `both`).
@@ -56,6 +57,9 @@ Allowed fields for `--fields`: `id`, `receivedAt`, `from`, `subject`, `preview`,
   - `fm message list --mailbox-role inbox --all --json`
 - List unread messages:
   - `fm message list --mailbox-role inbox --unread --limit 50 --json`
+- Filter by sender or subject text:
+  - `fm message list --mailbox-role inbox --from "billing@example.com" --json`
+  - `fm message list --mailbox-role inbox --subject-contains "invoice" --json`
 - List messages with limited fields:
   - `fm message list --mailbox-role inbox --fields id,receivedAt,from,subject,flags --json`
 - Fetch a message with body text:

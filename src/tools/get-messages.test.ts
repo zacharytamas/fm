@@ -63,6 +63,30 @@ describe("get-messages", () => {
       expect(queryCall?.[1].filter).toEqual({ inMailbox: "inbox-123" })
     })
 
+    test("applies from and subject filters", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            ["Email/query", { ids: [] }, "query"],
+            ["Email/get", { list: [] }, "get"],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await getMessages({
+        mailboxId: "inbox-123",
+        filters: { from: "billing@example.com", subject: "invoice" },
+      })
+
+      const queryCall = getMethodCall(capturedRequests, -1, 0)
+      expect(queryCall?.[1].filter).toEqual({
+        inMailbox: "inbox-123",
+        from: "billing@example.com",
+        subject: "invoice",
+      })
+    })
+
     test("uses back-reference for Email/get ids", async () => {
       const { mockFetch, capturedRequests } = createMockFetch({
         apiResponses: [
@@ -176,6 +200,31 @@ describe("get-messages", () => {
       const queryCall = getMethodCall(capturedRequests, -1, 0)
       expect(queryCall?.[1].filter).toEqual({
         inMailbox: "inbox-123",
+        notKeyword: "$seen",
+      })
+    })
+
+    test("supports from and subject filters", async () => {
+      const { mockFetch, capturedRequests } = createMockFetch({
+        apiResponses: [
+          createSuccessResponse([
+            ["Email/query", { ids: [] }, "query"],
+            ["Email/get", { list: [] }, "get"],
+          ]),
+        ],
+      })
+      globalThis.fetch = mockFetch
+
+      await getUnreadMessages("inbox-123", 50, 0, {
+        from: "billing@example.com",
+        subject: "invoice",
+      })
+
+      const queryCall = getMethodCall(capturedRequests, -1, 0)
+      expect(queryCall?.[1].filter).toEqual({
+        inMailbox: "inbox-123",
+        from: "billing@example.com",
+        subject: "invoice",
         notKeyword: "$seen",
       })
     })

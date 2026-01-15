@@ -77,6 +77,8 @@ type Command =
   | {
       kind: "message-list"
       mailbox: MailboxSelector
+      from?: string
+      subjectContains?: string
       limit: number
       position: number
       sort: SortSpec[]
@@ -617,7 +619,7 @@ function getHelpText(path: string[]): string {
     "": `FastMail JMAP CLI\n\nUsage:\n  ${CLI_NAME} [global flags] <command> [args]\n\nCommands:\n  mailbox list\n  mailbox get\n  message list\n  message get\n  message move\n  message add-mailbox\n  message remove-mailbox\n  message archive\n  message trash\n  message delete\n  message mark read|unread|flag|unflag\n  message keyword set|remove\n  completion <bash|zsh|fish>\n  help [command]\n\nGlobal flags:\n  -h, --help        Show help\n  --version         Show version\n  --json            JSON output\n  --plain           Plain line output\n  -q, --quiet       Suppress success output\n  -v, --verbose     Verbose diagnostics\n  --debug           Debug errors\n  --no-color        Disable color\n  --no-input        Disable prompts\n\nEnvironment:\n  FASTMAIL_API_TOKEN  FastMail API token\n\nExamples:\n  ${CLI_NAME} mailbox list --plain\n  ${CLI_NAME} message list --mailbox-role inbox --limit 20\n  ${CLI_NAME} message get E123 --json\n  ${CLI_NAME} message archive E1 E2 --no-mark-read\n`,
     "mailbox list": `Usage:\n  ${CLI_NAME} mailbox list [--role <role> | --name <name>] [--plain|--json]\n\nOptions:\n  --role <role>   Filter by role (e.g. inbox, archive, trash)\n  --name <name>   Filter by mailbox name\n`,
     "mailbox get": `Usage:\n  ${CLI_NAME} mailbox get (--id <id> | --name <name> | --role <role>) [--plain|--json]\n`,
-    "message list": `Usage:\n  ${CLI_NAME} message list (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>)\n    [--limit <n>] [--position <n>] [--sort <field:asc|desc>...] [--unread] [--all]\n    [--fields <csv>] [--plain|--json]\n\nNotes:\n  --limit max is ${MAX_MESSAGE_LIST_LIMIT}.\n  --unread cannot be combined with --position or --sort.\n`,
+    "message list": `Usage:\n  ${CLI_NAME} message list (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>)\n    [--limit <n>] [--position <n>] [--sort <field:asc|desc>...] [--from <query>]\n    [--subject-contains <text>] [--unread] [--all]\n    [--fields <csv>] [--plain|--json]\n\nNotes:\n  --limit max is ${MAX_MESSAGE_LIST_LIMIT}.\n  --unread cannot be combined with --position or --sort.\n`,
     "message get": `Usage:\n  ${CLI_NAME} message get <email-id> [--body] [--body-type text|html|both] [--plain|--json]\n`,
     "message move": `Usage:\n  ${CLI_NAME} message move <email-id...>\n    (--from-id <id> | --from-name <name> | --from-role <role>)\n    (--to-id <id> | --to-name <name> | --to-role <role>)\n    [--stdin] [--dry-run]\n`,
     "message add-mailbox": `Usage:\n  ${CLI_NAME} message add-mailbox <email-id> (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>) [--dry-run]\n`,
@@ -866,9 +868,14 @@ async function executeCommand(
 
         logVerbose(verbose, `Using mailbox ${mailbox.name} (${mailbox.id})`)
 
+        const filters =
+          command.from || command.subjectContains
+            ? { from: command.from, subject: command.subjectContains }
+            : undefined
+
         const fetchPage = async (position: number): Promise<EmailMessage[]> => {
           if (command.unread) {
-            return getUnreadMessages(mailbox.id, command.limit, position)
+            return getUnreadMessages(mailbox.id, command.limit, position, filters)
           }
 
           return getMessages({
@@ -879,6 +886,7 @@ async function executeCommand(
               command.sort.length > 0
                 ? command.sort
                 : [{ property: "receivedAt", isAscending: false }],
+            filters,
           })
         }
 
@@ -1232,6 +1240,8 @@ function buildMessageCommand(
     const fields = parseMessageFieldsOption(options.fields)
     const unread = readBooleanOption(options.unread)
     const all = readBooleanOption(options.all)
+    const from = readLastStringOption(options.from)
+    const subjectContains = readLastStringOption(options.subjectContains)
 
     if (unread && (options.position !== undefined || sortValues.length > 0)) {
       throw new UsageError("--unread cannot be combined with --position or --sort")
@@ -1240,6 +1250,8 @@ function buildMessageCommand(
     return {
       kind: "message-list",
       mailbox: selector,
+      from,
+      subjectContains,
       limit,
       position,
       sort,
@@ -1481,6 +1493,8 @@ export async function runCli(argv: string[]): Promise<number> {
     .option("--limit <n>", "Max messages to return")
     .option("--position <n>", "Start position")
     .option("--sort <field:asc|desc>", "Sort (repeat or comma-separated)")
+    .option("--from <query>", "Filter by From address")
+    .option("--subject-contains <text>", "Filter by subject text")
     .option("--fields <csv>", "Fields to include")
     .option("--unread", "Only unread messages")
     .option("--all", "Fetch all messages (paged)")
