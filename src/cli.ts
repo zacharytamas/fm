@@ -6,6 +6,7 @@ import {
   archiveMessages,
   deleteMessage,
   deleteMessages,
+  downloadAttachment,
   getMailboxById,
   getMailboxByName,
   getMailboxByRole,
@@ -87,6 +88,7 @@ type Command =
       all: boolean
     }
   | { kind: "message-get"; emailId: string; includeBody: boolean; bodyType: BodyType }
+  | { kind: "message-download"; blobId: string; outputPath: string; force: boolean }
   | {
       kind: "message-move"
       emailIds: string[]
@@ -616,11 +618,12 @@ function getHelpText(path: string[]): string {
   const key = path.join(" ")
 
   const help: Record<string, string> = {
-    "": `FastMail JMAP CLI\n\nUsage:\n  ${CLI_NAME} [global flags] <command> [args]\n\nCommands:\n  mailbox list\n  mailbox get\n  message list\n  message get\n  message move\n  message add-mailbox\n  message remove-mailbox\n  message archive\n  message trash\n  message delete\n  message mark read|unread|flag|unflag\n  message keyword set|remove\n  completion <bash|zsh|fish>\n  help [command]\n\nGlobal flags:\n  -h, --help        Show help\n  --version         Show version\n  --json            JSON output\n  --plain           Plain line output\n  -q, --quiet       Suppress success output\n  -v, --verbose     Verbose diagnostics\n  --debug           Debug errors\n  --no-color        Disable color\n  --no-input        Disable prompts\n\nEnvironment:\n  FASTMAIL_API_TOKEN  FastMail API token\n\nExamples:\n  ${CLI_NAME} mailbox list --plain\n  ${CLI_NAME} message list --mailbox-role inbox --limit 20\n  ${CLI_NAME} message get E123 --json\n  ${CLI_NAME} message archive E1 E2 --no-mark-read\n`,
+    "": `FastMail JMAP CLI\n\nUsage:\n  ${CLI_NAME} [global flags] <command> [args]\n\nCommands:\n  mailbox list\n  mailbox get\n  message list\n  message get\n  message download\n  message move\n  message add-mailbox\n  message remove-mailbox\n  message archive\n  message trash\n  message delete\n  message mark read|unread|flag|unflag\n  message keyword set|remove\n  completion <bash|zsh|fish>\n  help [command]\n\nGlobal flags:\n  -h, --help        Show help\n  --version         Show version\n  --json            JSON output\n  --plain           Plain line output\n  -q, --quiet       Suppress success output\n  -v, --verbose     Verbose diagnostics\n  --debug           Debug errors\n  --no-color        Disable color\n  --no-input        Disable prompts\n\nEnvironment:\n  FASTMAIL_API_TOKEN  FastMail API token\n\nExamples:\n  ${CLI_NAME} mailbox list --plain\n  ${CLI_NAME} message list --mailbox-role inbox --limit 20\n  ${CLI_NAME} message get E123 --json\n  ${CLI_NAME} message archive E1 E2 --no-mark-read\n`,
     "mailbox list": `Usage:\n  ${CLI_NAME} mailbox list [--role <role> | --name <name>] [--plain|--json]\n\nOptions:\n  --role <role>   Filter by role (e.g. inbox, archive, trash)\n  --name <name>   Filter by mailbox name\n`,
     "mailbox get": `Usage:\n  ${CLI_NAME} mailbox get (--id <id> | --name <name> | --role <role>) [--plain|--json]\n`,
     "message list": `Usage:\n  ${CLI_NAME} message list (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>)\n    [--limit <n>] [--position <n>] [--sort <field:asc|desc>...] [--from <query>]\n    [--subject-contains <text>] [--unread] [--all]\n    [--fields <csv>] [--plain|--json]\n\nNotes:\n  --limit max is ${MAX_MESSAGE_LIST_LIMIT}.\n  --unread cannot be combined with --position or --sort.\n`,
     "message get": `Usage:\n  ${CLI_NAME} message get <email-id> [--body] [--body-type text|html|both] [--plain|--json]\n`,
+    "message download": `Usage:\n  ${CLI_NAME} message download <blob-id> <output-path> [--force]\n\nOptions:\n  --force  Overwrite output file if it exists\n`,
     "message move": `Usage:\n  ${CLI_NAME} message move <email-id...>\n    (--from-id <id> | --from-name <name> | --from-role <role>)\n    (--to-id <id> | --to-name <name> | --to-role <role>)\n    [--stdin] [--dry-run]\n`,
     "message add-mailbox": `Usage:\n  ${CLI_NAME} message add-mailbox <email-id> (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>) [--dry-run]\n`,
     "message remove-mailbox": `Usage:\n  ${CLI_NAME} message remove-mailbox <email-id> (--mailbox-id <id> | --mailbox-name <name> | --mailbox-role <role>) [--dry-run]\n`,
@@ -639,14 +642,14 @@ function getHelpText(path: string[]): string {
 
 function renderCompletionScript(shell: "bash" | "zsh" | "fish"): string {
   if (shell === "bash") {
-    return `_${CLI_NAME}_completions() {\n  local cur prev\n  cur=\"\${COMP_WORDS[COMP_CWORD]}\"\n  prev=\"\${COMP_WORDS[COMP_CWORD-1]}\"\n  if [[ $COMP_CWORD -eq 1 ]]; then\n    COMPREPLY=( $(compgen -W \"mailbox message help completion\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"mailbox\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"message\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get move add-mailbox remove-mailbox archive trash delete mark keyword\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"completion\" ]]; then\n    COMPREPLY=( $(compgen -W \"bash zsh fish\" -- \"$cur\") )\n  fi\n}\ncomplete -F _${CLI_NAME}_completions ${CLI_NAME}\n`
+    return `_${CLI_NAME}_completions() {\n  local cur prev\n  cur=\"\${COMP_WORDS[COMP_CWORD]}\"\n  prev=\"\${COMP_WORDS[COMP_CWORD-1]}\"\n  if [[ $COMP_CWORD -eq 1 ]]; then\n    COMPREPLY=( $(compgen -W \"mailbox message help completion\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"mailbox\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"message\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get download move add-mailbox remove-mailbox archive trash delete mark keyword\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"completion\" ]]; then\n    COMPREPLY=( $(compgen -W \"bash zsh fish\" -- \"$cur\") )\n  fi\n}\ncomplete -F _${CLI_NAME}_completions ${CLI_NAME}\n`
   }
 
   if (shell === "zsh") {
     return `#compdef ${CLI_NAME}\n\n_${CLI_NAME}() {\n  local -a commands\n  commands=(\n    'mailbox:Mailbox operations'\n    'message:Message operations'\n    'help:Show help'\n    'completion:Generate completions'\n  )\n  _describe 'command' commands\n}\n\ncompdef _${CLI_NAME} ${CLI_NAME}\n`
   }
 
-  return `complete -c ${CLI_NAME} -f -a \"mailbox message help completion\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from mailbox\" -f -a \"list get\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from message\" -f -a \"list get move add-mailbox remove-mailbox archive trash delete mark keyword\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from completion\" -f -a \"bash zsh fish\"\n`
+  return `complete -c ${CLI_NAME} -f -a \"mailbox message help completion\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from mailbox\" -f -a \"list get\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from message\" -f -a \"list get download move add-mailbox remove-mailbox archive trash delete mark keyword\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from completion\" -f -a \"bash zsh fish\"\n`
 }
 
 async function getVersion(): Promise<string> {
@@ -931,6 +934,29 @@ async function executeCommand(
           json: message,
           plain: formatMessageGetPlain(message, command.includeBody, command.bodyType),
           human: formatMessageGetHuman(message, command.includeBody, command.bodyType),
+        })
+        return 0
+      }
+      case "message-download": {
+        const outputFile = Bun.file(command.outputPath)
+        if (!command.force && (await outputFile.exists())) {
+          throw new UsageError(
+            `Output path exists (${command.outputPath}); use --force to overwrite`,
+          )
+        }
+
+        const result = await downloadAttachment(command.blobId, command.outputPath)
+
+        emitOutput(outputFormat, quiet, {
+          json: {
+            ok: true,
+            action: "download",
+            blobId: result.blobId,
+            path: result.path,
+            size: result.size,
+          },
+          plain: `download\t${result.blobId}\t${result.path}\t${result.size}`,
+          human: `Downloaded ${result.blobId} to ${result.path} (${result.size} bytes)`,
         })
         return 0
       }
@@ -1282,6 +1308,23 @@ function buildMessageCommand(
       emailId,
       includeBody: readBooleanOption(options.body) || Boolean(bodyTypeValue),
       bodyType: bodyType as BodyType,
+    }
+  }
+
+  if (action === "download") {
+    const [blobId, outputPath, ...rest] = args
+    if (!blobId || !outputPath) {
+      throw new UsageError("message download requires <blob-id> <output-path>")
+    }
+    if (rest.length > 0) {
+      throw new UsageError("message download accepts only a blob id and output path")
+    }
+
+    return {
+      kind: "message-download",
+      blobId,
+      outputPath,
+      force: readBooleanOption(options.force),
     }
   }
 

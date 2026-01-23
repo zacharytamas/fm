@@ -1,6 +1,6 @@
 ---
 name: fm
-description: Provides detail on how to interact with the user's email account. Includes list mailboxes, fetch messages and bodies, move/add/remove mailboxes, archive/trash/delete, mark flags, and set/remove keywords. Use when the user asks to review, organize, or change their emails.
+description: Provides detail on how to interact with the user's email account. Includes list mailboxes, fetch messages and bodies, download attachments, move/add/remove mailboxes, archive/trash/delete, mark flags, and set/remove keywords. Use when the user asks to review, organize, or change their emails.
 ---
 
 # fm (FastMail JMAP agent skill)
@@ -22,6 +22,7 @@ Translate user intent into `fm` operations and return results without exposing C
 - `message list` returns `{ mailbox: { id, name, role }, messages: [...] }`.
   - If `--fields` is used, each message is a partial object with only those fields.
 - `message get` returns a full message object; with body included, expect `textBody`/`htmlBody` parts plus `bodyValues` content.
+- `message download` returns `{ ok: true, action: "download", blobId, path, size }`.
 - Mutation commands return `{ ok: true, action: "...", ... }` plus identifiers for auditing.
 
 ## Concepts to apply
@@ -31,6 +32,7 @@ Translate user intent into `fm` operations and return results without exposing C
 - `message list --from` filters by sender; `--subject-contains` filters by subject substring.
 - `message list --limit` max is 100; use `--position` to paginate or `--all` to fetch every page.
 - For bulk actions (`move`, `archive`, `trash`, `delete`, `mark`), `--stdin` accepts newline-delimited IDs. Use `--force --no-input` for non-interactive trash/delete.
+- `message download` refuses to overwrite the output path unless `--force` is used.
 - `--body-type` implies body output (`text`, `html`, or `both`).
 - Use `--fields` on `message list` to limit payload size when you only need a few columns.
 
@@ -66,6 +68,12 @@ Allowed fields for `--fields`: `id`, `receivedAt`, `from`, `subject`, `preview`,
   - `fm message get E123 --body-type text --json`
 - Fetch a message with both text and HTML:
   - `fm message get E123 --body-type both --json`
+
+### Attachments
+
+- Download an attachment blob to a path:
+  - `fm message download BLOB123 /tmp/invoice.pdf --json`
+  - `fm message download BLOB123 /tmp/invoice.pdf --force --json`
 
 ### Move / add / remove mailbox
 
