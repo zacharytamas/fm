@@ -14,6 +14,7 @@ TypeScript with strict mode. ESM modules.
 | Task            | Command                           |
 | --------------- | --------------------------------- |
 | Install deps    | `bun install`                     |
+| Build          | `bun run build`                  |
 | Run app         | `bun run src/index.ts`            |
 | Run with HMR    | `bun --hot src/index.ts`          |
 | Run tests       | `bun test`                        |
@@ -25,6 +26,16 @@ TypeScript with strict mode. ESM modules.
 ---
 
 ## Build / Lint / Test Commands
+
+### Building
+
+```bash
+# Build a standalone executable for the current platform
+bun run build
+
+# Output binary
+dist/fm
+```
 
 ### Running the Application
 

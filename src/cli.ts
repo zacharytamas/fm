@@ -642,14 +642,14 @@ function getHelpText(path: string[]): string {
 
 function renderCompletionScript(shell: "bash" | "zsh" | "fish"): string {
   if (shell === "bash") {
-    return `_${CLI_NAME}_completions() {\n  local cur prev\n  cur=\"\${COMP_WORDS[COMP_CWORD]}\"\n  prev=\"\${COMP_WORDS[COMP_CWORD-1]}\"\n  if [[ $COMP_CWORD -eq 1 ]]; then\n    COMPREPLY=( $(compgen -W \"mailbox message help completion\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"mailbox\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"message\" ]]; then\n    COMPREPLY=( $(compgen -W \"list get download move add-mailbox remove-mailbox archive trash delete mark keyword\" -- \"$cur\") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == \"completion\" ]]; then\n    COMPREPLY=( $(compgen -W \"bash zsh fish\" -- \"$cur\") )\n  fi\n}\ncomplete -F _${CLI_NAME}_completions ${CLI_NAME}\n`
+    return `_${CLI_NAME}_completions() {\n  local cur prev\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  prev="\${COMP_WORDS[COMP_CWORD-1]}"\n  if [[ $COMP_CWORD -eq 1 ]]; then\n    COMPREPLY=( $(compgen -W "mailbox message help completion" -- "$cur") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == "mailbox" ]]; then\n    COMPREPLY=( $(compgen -W "list get" -- "$cur") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == "message" ]]; then\n    COMPREPLY=( $(compgen -W "list get download move add-mailbox remove-mailbox archive trash delete mark keyword" -- "$cur") )\n    return\n  fi\n  if [[ \${COMP_WORDS[1]} == "completion" ]]; then\n    COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )\n  fi\n}\ncomplete -F _${CLI_NAME}_completions ${CLI_NAME}\n`
   }
 
   if (shell === "zsh") {
     return `#compdef ${CLI_NAME}\n\n_${CLI_NAME}() {\n  local -a commands\n  commands=(\n    'mailbox:Mailbox operations'\n    'message:Message operations'\n    'help:Show help'\n    'completion:Generate completions'\n  )\n  _describe 'command' commands\n}\n\ncompdef _${CLI_NAME} ${CLI_NAME}\n`
   }
 
-  return `complete -c ${CLI_NAME} -f -a \"mailbox message help completion\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from mailbox\" -f -a \"list get\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from message\" -f -a \"list get download move add-mailbox remove-mailbox archive trash delete mark keyword\"\ncomplete -c ${CLI_NAME} -n \"__fish_seen_subcommand_from completion\" -f -a \"bash zsh fish\"\n`
+  return `complete -c ${CLI_NAME} -f -a "mailbox message help completion"\ncomplete -c ${CLI_NAME} -n "__fish_seen_subcommand_from mailbox" -f -a "list get"\ncomplete -c ${CLI_NAME} -n "__fish_seen_subcommand_from message" -f -a "list get download move add-mailbox remove-mailbox archive trash delete mark keyword"\ncomplete -c ${CLI_NAME} -n "__fish_seen_subcommand_from completion" -f -a "bash zsh fish"\n`
 }
 
 async function getVersion(): Promise<string> {

@@ -15,5 +15,8 @@
     "@opencode-ai/plugin": "^1.0.200",
     "@opencode-ai/sdk": "^1.0.200",
     "cac": "^6.7.14"
+  },
+  "scripts": {
+    "build": "bun build --compile --outfile dist/fm ./bin/fm.ts"
   }
 }

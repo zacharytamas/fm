@@ -1,4 +1,5 @@
 export { archiveMessages, deleteMessage, deleteMessages, trashMessages } from "./archive-delete.ts"
+export { downloadAttachment } from "./download-attachment.ts"
 export {
   getMailboxById,
   getMailboxByName,
@@ -10,7 +11,6 @@ export { getMessage, getMessages as getMessagesById } from "./get-message.ts"
 export type { GetMessagesOptions } from "./get-messages.ts"
 export { getMessages, getUnreadMessages } from "./get-messages.ts"
 export { addToMailbox, moveMessage, moveMessages, removeFromMailbox } from "./move-message.ts"
-export { downloadAttachment } from "./download-attachment.ts"
 export type {
   EmailAddress,
   EmailBodyPart,
