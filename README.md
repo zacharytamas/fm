@@ -14,6 +14,16 @@ Set your FastMail API token via environment variable (Bun auto-loads `.env`):
 export FASTMAIL_API_TOKEN="your-token"
 ```
 
+## Build
+
+Build a standalone executable for the current platform:
+
+```bash
+bun run build
+```
+
+The compiled binary is written to `dist/fm`.
+
 ## Run
 
 ```bash

@@ -1,6 +1,5 @@
-import { basename } from "node:path"
-
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
+import { basename } from "node:path"
 
 import { downloadAttachment } from "./download-attachment.ts"
 import type { CapturedRequest } from "./test-utils.ts"
